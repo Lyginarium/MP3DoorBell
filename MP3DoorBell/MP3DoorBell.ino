@@ -53,6 +53,7 @@ DFMiniMp3<SoftwareSerial, Mp3Notify> mp3(secondarySerial);
 
 uint32_t lastAdvert; // track time for last advertisement
 uint32_t lastPlay;
+bool ReedRelayClose;
 const int PlayButton = 2; 
 const int MP3ModuleBusy = 3;
 const int DoorLimitSwitch = 4;
@@ -87,6 +88,7 @@ void loop()
   if ((digitalRead(PlayButton) ==  HIGH)&&
     (digitalRead(MP3ModuleBusy) == HIGH))
     {
+      ReedRelayClose = digitalRead(DoorLimitSwitch);
       Serial.println("track 1 from folder 1"); 
   mp3.playFolderTrack(1, 1); // sd:/01/001.mp3
     
@@ -111,7 +113,7 @@ void loop()
     lastAdvert = now;
   }
   
-  if ((((now - lastPlay) > 60000)&&(digitalRead(MP3ModuleBusy) == LOW)) || (digitalRead(DoorLimitSwitch) == LOW))
+  if ((((now - lastPlay) > 60000)&&(digitalRead(MP3ModuleBusy) == LOW)) || ((digitalRead(DoorLimitSwitch) == LOW) && (ReedRelayClose)))
   {
     mp3.stop();
     lastPlay = now;
