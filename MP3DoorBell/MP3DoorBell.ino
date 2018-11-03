@@ -53,16 +53,19 @@ DFMiniMp3<SoftwareSerial, Mp3Notify> mp3(secondarySerial);
 
 uint32_t lastAdvert; // track time for last advertisement
 uint32_t lastPlay;
+uint16_t volumeTmp;
 bool ReedRelayClose;
 const int PlayButton = 2; 
 const int MP3ModuleBusy = 3;
 const int DoorLimitSwitch = 4;
+const int PlaybackLED = 5;
 
 void setup() 
 {
   pinMode (PlayButton, INPUT);
   pinMode (MP3ModuleBusy, INPUT);
   pinMode (DoorLimitSwitch, INPUT);
+  pinMode (PlaybackLED, OUTPUT);
   Serial.begin(115200);
 
   Serial.println("initializing...");
@@ -81,6 +84,7 @@ void setup()
 
   lastAdvert = millis();
   lastPlay = millis();
+  
 }
 
 void loop() 
@@ -90,8 +94,16 @@ void loop()
     {
       ReedRelayClose = digitalRead(DoorLimitSwitch);
       Serial.println("track 1 from folder 1"); 
-  mp3.playFolderTrack(1, 1); // sd:/01/001.mp3
+      digitalWrite(PlaybackLED, HIGH);
+      volumeTmp = mp3.getVolume();
+      mp3.setVolume(0);
+  mp3.playFolderTrack(1, random(1, 28)); // sd:/01/001.mp3
     
+      for(int i = 1; i <= volumeTmp; i++)
+        {
+        mp3.setVolume(i);
+        delay(100);
+        }
 
  /*uint32_t now = millis();
   if ((now - lastAdvert) > 20000)
@@ -109,13 +121,23 @@ void loop()
   {
     // interrupt the song and play the advertisement, it will
     // return to the song when its done playing automatically
-    mp3.playAdvertisement(1); // sd:/advert/0001.mp3
+    mp3.playAdvertisement(random(1, 10)); // sd:/advert/0001.mp3
     lastAdvert = now;
   }
   
   if ((((now - lastPlay) > 60000)&&(digitalRead(MP3ModuleBusy) == LOW)) || ((digitalRead(DoorLimitSwitch) == LOW) && (ReedRelayClose)))
   {
+    digitalWrite (PlaybackLED, LOW);
+    volumeTmp = mp3.getVolume();
+      
+    
+      for(int i = (volumeTmp - 1); i >= 0; i--)
+        {
+        mp3.setVolume(i);
+        delay(100);
+        }
     mp3.stop();
+    mp3.setVolume(volumeTmp);
     lastPlay = now;
     lastAdvert = now;
   }
