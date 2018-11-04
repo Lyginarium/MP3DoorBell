@@ -129,17 +129,18 @@ lastAdvert = millis();
   {
     // interrupt the song and play the advertisement, it will
     // return to the song when its done playing automatically
-    mp3.playAdvertisement(random(1, 10)); // sd:/advert/0001.mp3
+    mp3.playAdvertisement(random(1, 10)); // играть случайную рекламную вставку с 1 по 9 файл включительно
     lastAdvert = millis();
   }
   
   if ((((now - lastPlay) > 90000)&&(digitalRead(MP3ModuleBusy) == LOW)) || ((digitalRead(DoorLimitSwitch) == LOW) && (ReedRelayClose)))
+  // если трек играет больше 90 секунд или дверь была закрыта и открылась
   {
-    digitalWrite (PlaybackLED, LOW);
+    digitalWrite (PlaybackLED, LOW); // гасим индикатор активности плеера
     volumeTmp = mp3.getVolume();
       
     
-      for(int i = (volumeTmp - 1); i >= 0; i--)
+      for(int i = (volumeTmp - 1); i >= 0; i--) // плавно убавляем звук до нуля
         {
         mp3.setVolume(i);
         delay(100);
@@ -150,6 +151,6 @@ lastAdvert = millis();
     //lastAdvert = now;
   }
   
-  mp3.loop();
+  mp3.loop(); // аптека, улица, фонарь
   }
   
