@@ -1,18 +1,29 @@
-// this example will play a track and then every 60 seconds
-// it will play an advertisement
+// MP3DoorBell v. 0.1 "it's alive"
+// Lyginarium 2018 (c)
 //
-// it expects the sd card to contain the following mp3 files
-// but doesn't care whats in them
+// Дверной звонок, воспроизводящий мелодии формата MP3 с microSD карты, с 
+// некоторыми дополнительными фичами.
+// Проект построен на плате Arduino Nano v.3 и плате MP3-TP-16P, являющейся
+// дешевым клоном DFPlayer от DFRobot.
+// Мелодии могут "разбавляться" забавными и полезными голосовыми вставками,
+// т. н. "рекламой", также записаной в формате MP3 на microSD-карту.
 //
-// sd:/01/001.mp3 - the song to play, the longer the better
-// sd:/advert/0001.mp3 - the advertisement to interrupt the song, keep it short
+// Для работы проекта необходимио создать на карте памяти две папки:
+// 01 - для мелодий звонка; формат имени файла - 001.mp3, 002.mp3, ...
+// и т. д., до 999 файлов в одной папке.
+//
+// Папку advert для "рекламы"; формат имени файла вида 0001.mp3 и т. д.
+//
+//Для успешной сборки проекта в среде разработки Arduino должны
+// быть установленной библиотеки SoftwareSerial и DFPlayer Mini Mp3 by Makuna.
 
 #include <SoftwareSerial.h>
 #include <DFMiniMp3.h>
 
-// implement a notification class,
-// its member methods will get called 
-//
+// реализация класса оповещений, методами которого можно пользоваться для отладки
+// или вывода информации о проигрываемых файлах и ошибках через последовательный порт.
+
+
 class Mp3Notify
 {
 public:
@@ -40,25 +51,26 @@ public:
     Serial.println("Card removed ");
   }
 };
+ //Конец реализации класса оповещений.
 
-// instance a DFMiniMp3 object, 
-// defined with the above notification class and the hardware serial class
-//
-//DFMiniMp3<HardwareSerial, Mp3Notify> mp3(Serial1);
 
-// Some arduino boards only have one hardware serial port, so a software serial port is needed instead.
-// comment out the above definition and uncomment these lines
+
+// Поскольку встроенный в Ардуину аппаратный последовательный интерфес нам может понадобится для отладки,
+// создаем экземпляр класса программно эмулированного последовательного интерфейса
 SoftwareSerial secondarySerial(10, 11); // RX, TX
+
+// Создаем экземпляр класса DFMiniMp3, 
+// определенного с указанным выше классом уведомлений и классом последовательного интерфейса.
 DFMiniMp3<SoftwareSerial, Mp3Notify> mp3(secondarySerial);
 
-uint32_t lastAdvert; // track time for last advertisement
-uint32_t lastPlay;
+uint32_t lastAdvert; // длительность проигрывания трека без рекламы
+uint32_t lastPlay; // длительность проигрывания трека
 uint16_t volumeTmp;
-bool ReedRelayClose;
-const int PlayButton = 2; 
-const int MP3ModuleBusy = 3;
-const int DoorLimitSwitch = 4;
-const int PlaybackLED = 5;
+bool ReedRelayClose; // флаг состояни геркона: 1 - замкнут (дверь закрыта), 0 - разомкнут (дверь открыта)
+const int PlayButton = 2; // кнопка звонка: нажата/отпущена
+const int MP3ModuleBusy = 3; // состояние МП3-плеера: занят/свободен
+const int DoorLimitSwitch = 4; // геркон
+const int PlaybackLED = 5; // индикация состояния МП3-плеера: занят/свободен
 
 void setup() 
 {
@@ -66,66 +78,62 @@ void setup()
   pinMode (MP3ModuleBusy, INPUT);
   pinMode (DoorLimitSwitch, INPUT);
   pinMode (PlaybackLED, OUTPUT);
-  Serial.begin(115200);
-
-  Serial.println("initializing...");
   
-  mp3.begin();
-  uint16_t volume = mp3.getVolume();
-  Serial.print("volume was ");
-  Serial.println(volume);
+  //Serial.begin(115200);
+  //Serial.println("initializing..."); 
+  
+  mp3.begin(); // инициация, х. з. чо это...
+ // uint16_t volume = mp3.getVolume(); // лишнее, т. к. при включении громкость модуль сам выставляет себе на максимум, т. е. 30
+  
+  //Serial.print("volume was ");
+  //Serial.println(volume);
+  
   mp3.setVolume(10);
-  volume = mp3.getVolume();
-  Serial.print(" and changed to  ");
-  Serial.println(volume);
+  
+ // volume = mp3.getVolume();
+ // Serial.print(" and changed to  ");
+ // Serial.println(volume);
   
   //Serial.println("track 1 from folder 1"); 
   //mp3.playFolderTrack(1, 1); // sd:/01/001.mp3
 
-  lastAdvert = millis();
-  lastPlay = millis();
+  
   
 }
 
 void loop() 
 {
-  if ((digitalRead(PlayButton) ==  HIGH)&&
-    (digitalRead(MP3ModuleBusy) == HIGH))
+  if ((digitalRead(PlayButton) ==  HIGH)&& // Если нажата кнопка звонка и ничего не проигрывается, то
+    (digitalRead(MP3ModuleBusy) == HIGH))  // 
     {
-      ReedRelayClose = digitalRead(DoorLimitSwitch);
-      Serial.println("track 1 from folder 1"); 
-      digitalWrite(PlaybackLED, HIGH);
-      volumeTmp = mp3.getVolume();
-      mp3.setVolume(0);
-  mp3.playFolderTrack(1, random(1, 28)); // sd:/01/001.mp3
+      ReedRelayClose = digitalRead(DoorLimitSwitch); // запомнить, в каком состоянии геркон
+     // Serial.println("track 1 from folder 1"); 
+      digitalWrite(PlaybackLED, HIGH); // зажечь индикаторный светодиод
+      volumeTmp = mp3.getVolume(); // запомнить громкость
+      mp3.setVolume(0); // убавить громкость до 0
+  mp3.playFolderTrack(1, random(1, 28)); // папка 01, случайный трек от 1 до 27 включительно
     
-      for(int i = 1; i <= volumeTmp; i++)
+      for(int i = 1; i <= volumeTmp; i++) // плавно вывести громкость вверх до установленной величины
         {
         mp3.setVolume(i);
         delay(100);
         }
-
- /*uint32_t now = millis();
-  if ((now - lastAdvert) > 20000)
-  
-    // interrupt the song and play the advertisement, it will
-    // return to the song when its done playing automatically
-    mp3.playAdvertisement(1); // sd:/advert/0001.mp3
-    lastAdvert = now;
-  
-  if (now >= 60000) mp3.stop();*/
+        
+lastAdvert = millis();
+  lastPlay = millis();
+ 
     }
-    uint32_t now = millis();
+    uint32_t now = millis(); // время с начала выполнения программы, мс
     
-  if (((now - lastAdvert) > 20000)&&(digitalRead(MP3ModuleBusy) == LOW))
+  if (((now - lastAdvert) > 25000)&&(digitalRead(MP3ModuleBusy) == LOW)) // если прошло больше 25 с без рекламы
   {
     // interrupt the song and play the advertisement, it will
     // return to the song when its done playing automatically
     mp3.playAdvertisement(random(1, 10)); // sd:/advert/0001.mp3
-    lastAdvert = now;
+    lastAdvert = millis();
   }
   
-  if ((((now - lastPlay) > 60000)&&(digitalRead(MP3ModuleBusy) == LOW)) || ((digitalRead(DoorLimitSwitch) == LOW) && (ReedRelayClose)))
+  if ((((now - lastPlay) > 90000)&&(digitalRead(MP3ModuleBusy) == LOW)) || ((digitalRead(DoorLimitSwitch) == LOW) && (ReedRelayClose)))
   {
     digitalWrite (PlaybackLED, LOW);
     volumeTmp = mp3.getVolume();
@@ -138,10 +146,10 @@ void loop()
         }
     mp3.stop();
     mp3.setVolume(volumeTmp);
-    lastPlay = now;
-    lastAdvert = now;
+    //lastPlay = now;
+    //lastAdvert = now;
   }
   
   mp3.loop();
   }
-  //if (now >= 60000) mp3.stop();
+  
