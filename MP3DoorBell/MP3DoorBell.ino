@@ -1,4 +1,5 @@
 // MP3DoorBell v. 0.1 "it's alive"
+// 06.11.2018 v. 0.2 "keep going"
 // Lyginarium 2018 (c)
 //
 // Дверной звонок, воспроизводящий мелодии формата MP3 с microSD карты, с 
@@ -65,7 +66,7 @@ DFMiniMp3<SoftwareSerial, Mp3Notify> mp3(secondarySerial);
 
 uint32_t lastAdvert; // длительность проигрывания трека без рекламы
 uint32_t lastPlay; // длительность проигрывания трека
-uint16_t volumeTmp;
+uint16_t volumeTmp; // громкость
 bool ReedRelayClose; // флаг состояни геркона: 1 - замкнут (дверь закрыта), 0 - разомкнут (дверь открыта)
 const int PlayButton = 2; // кнопка звонка: нажата/отпущена
 const int MP3ModuleBusy = 3; // состояние МП3-плеера: занят/свободен
@@ -79,39 +80,21 @@ void setup()
   pinMode (DoorLimitSwitch, INPUT);
   pinMode (PlaybackLED, OUTPUT);
   
-  //Serial.begin(115200);
-  //Serial.println("initializing..."); 
-  
-  mp3.begin(); // инициация, х. з. чо это...
- // uint16_t volume = mp3.getVolume(); // лишнее, т. к. при включении громкость модуль сам выставляет себе на максимум, т. е. 30
-  
-  //Serial.print("volume was ");
-  //Serial.println(volume);
-  
-  mp3.setVolume(10);
-  
- // volume = mp3.getVolume();
- // Serial.print(" and changed to  ");
- // Serial.println(volume);
-  
-  //Serial.println("track 1 from folder 1"); 
-  //mp3.playFolderTrack(1, 1); // sd:/01/001.mp3
-
-  
-  
-}
+  mp3.begin(); // инициализация...
+  mp3.setVolume(15); // при включении плеера, он сам выставляет себе громкость на максимум (30),
+  // причем на максимуме сама плата звук не тащит и уходит в защиту. По крайней мере, мой экземпляр.
+ }
 
 void loop() 
 {
-  if ((digitalRead(PlayButton) ==  HIGH)&& // Если нажата кнопка звонка и ничего не проигрывается, то
-    (digitalRead(MP3ModuleBusy) == HIGH))  // 
+  if ((digitalRead(PlayButton) ==  LOW)&& // Если нажата кнопка звонка и ничего не проигрывается, то:
+    (digitalRead(MP3ModuleBusy) == HIGH))  
     {
       ReedRelayClose = digitalRead(DoorLimitSwitch); // запомнить, в каком состоянии геркон
-     // Serial.println("track 1 from folder 1"); 
-      digitalWrite(PlaybackLED, HIGH); // зажечь индикаторный светодиод
+      digitalWrite(PlaybackLED, HIGH); // зажечь индикатор активности плеера
       volumeTmp = mp3.getVolume(); // запомнить громкость
       mp3.setVolume(0); // убавить громкость до 0
-  mp3.playFolderTrack(1, random(1, 28)); // папка 01, случайный трек от 1 до 27 включительно
+      mp3.playFolderTrack(1, random(1, mp3.getFolderTrackCount(1) + 1)); // запустить воспроизведение, папка 01, случайный трек
     
       for(int i = 1; i <= volumeTmp; i++) // плавно вывести громкость вверх до установленной величины
         {
@@ -119,18 +102,17 @@ void loop()
         delay(100);
         }
         
-lastAdvert = millis();
+  lastAdvert = millis();
   lastPlay = millis();
  
     }
-    uint32_t now = millis(); // время с начала выполнения программы, мс
+    
+ uint32_t now = millis(); // время с начала выполнения программы, мс
     
   if (((now - lastAdvert) > 25000)&&(digitalRead(MP3ModuleBusy) == LOW)) // если прошло больше 25 с без рекламы
   {
-    // interrupt the song and play the advertisement, it will
-    // return to the song when its done playing automatically
     mp3.playAdvertisement(random(1, 10)); // играть случайную рекламную вставку с 1 по 9 файл включительно
-    lastAdvert = millis();
+    lastAdvert = millis(); // проигрываемый трек при этом ставится на паузу, после воспроизведения вставки, проигрывание возобновляется автоматически
   }
   
   if ((((now - lastPlay) > 90000)&&(digitalRead(MP3ModuleBusy) == LOW)) || ((digitalRead(DoorLimitSwitch) == LOW) && (ReedRelayClose)))
@@ -138,18 +120,16 @@ lastAdvert = millis();
   {
     digitalWrite (PlaybackLED, LOW); // гасим индикатор активности плеера
     volumeTmp = mp3.getVolume();
-      
-    
-      for(int i = (volumeTmp - 1); i >= 0; i--) // плавно убавляем звук до нуля
+        
+    for(int i = (volumeTmp - 1); i >= 0; i--) // плавно убавляем звук до нуля
         {
         mp3.setVolume(i);
         delay(100);
         }
+        
     mp3.stop();
     mp3.setVolume(volumeTmp);
-    //lastPlay = now;
-    //lastAdvert = now;
-  }
+   }
   
   mp3.loop(); // аптека, улица, фонарь
   }
